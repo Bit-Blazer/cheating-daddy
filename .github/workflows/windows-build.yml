@@ -1,48 +1,43 @@
-name: CI Desktop
+name: Build & Release Electron
 
 on:
-    pull_request:
-        branches: [main]
-    schedule:
-        - cron: '0 2 2 */4 *'
-    workflow_dispatch:
+  push:
+  workflow_dispatch:
 
 permissions:
-    contents: read
-
-concurrency:
-    group: ci-${{ github.ref }}
-    cancel-in-progress: true
+  contents: write
 
 jobs:
-    build:
-        strategy:
-            fail-fast: true
-            matrix:
-                os: [windows-latest]
+  build:
+    runs-on: windows-latest
 
-        runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          cache: 'npm'
 
-            - name: Setup NodeJS
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 'lts/*'
-                  cache: 'npm'
+      - name: Install dependencies
+        run: npm install
 
-            - name: Install JS dependencies
-              run: npm install
+      - name: Package Electron App (Windows)
+        run: npm run build:win
 
-            - name: Run tests
-              run: npm test
+      - name: Upload installer (.exe) on non-tag pushes
+        if: startsWith(github.ref, 'refs/tags/') == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
 
-            - name: Build Electron app
-              uses: samuelmeuli/action-electron-builder@v1
-              with:
-                  release: false
-                  args: -w --x64
-              env:
-                  GH_TOKEN: ${{ secrets.github_token }}
+      - name: Create GitHub Release (on tag pushes)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

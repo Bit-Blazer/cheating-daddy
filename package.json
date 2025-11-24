@@ -10,7 +10,8 @@
         "make": "electron-forge make",
         "publish": "electron-forge publish",
         "lint": "echo \"No linting configured\"",
-        "test": "vitest run"
+        "test": "vitest run",
+        "build:win": "electron-builder --win --x64 --publish never"
     },
     "keywords": [
         "cheating daddy",
@@ -41,6 +42,7 @@
         "@electron/fuses": "^1.8.0",
         "@reforged/maker-appimage": "^5.0.0",
         "electron": "^30.0.5",
+        "electron-builder": "^26.0.12",
         "jsdom": "^23.2.0",
         "pkg-types": "^2.2.0",
         "vitest": "^1.6.1"
