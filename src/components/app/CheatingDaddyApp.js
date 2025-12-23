@@ -174,7 +174,7 @@ export class CheatingDaddyApp extends LitElement {
             ipcRenderer.removeAllListeners('update-status');
             ipcRenderer.removeAllListeners('click-through-toggled');
         }
-
+        
         // Remove global keyboard event listener
         if (this.boundKeydownHandler) {
             document.removeEventListener('keydown', this.boundKeydownHandler);
@@ -183,7 +183,7 @@ export class CheatingDaddyApp extends LitElement {
 
     setStatus(text) {
         this.statusText = text;
-
+        
         // Mark response as complete when we get certain status messages
         if (text.includes('Ready') || text.includes('Listening') || text.includes('Error')) {
             this._currentResponseIsComplete = true;
@@ -304,7 +304,7 @@ export class CheatingDaddyApp extends LitElement {
         // Set current mode and model for header display
         this.currentMode = selectedMode;
         if (selectedMode === 'interview') {
-            this.currentModel = 'gemini-2.5-flash-native-audio-preview-09-2025';
+            this.currentModel = 'gemini-live-2.5-flash-preview';
         } else {
             this.currentModel = selectedModel;
         }
@@ -331,7 +331,7 @@ export class CheatingDaddyApp extends LitElement {
         }
     }
 
-    handleClearAndRestart() {
+        handleClearAndRestart() {
         // Clear the current session and responses
         this.responses = [];
         this.currentResponseIndex = -1;
@@ -524,11 +524,11 @@ export class CheatingDaddyApp extends LitElement {
                         .shouldAnimateResponse=${this.shouldAnimateResponse}
                         @response-index-changed=${this.handleResponseIndexChanged}
                         @response-animation-complete=${() => {
-                        this.shouldAnimateResponse = false;
-                        this._currentResponseIsComplete = true;
-                        console.log('[response-animation-complete] Marked current response as complete');
-                        this.requestUpdate();
-                    }}
+                            this.shouldAnimateResponse = false;
+                            this._currentResponseIsComplete = true;
+                            console.log('[response-animation-complete] Marked current response as complete');
+                            this.requestUpdate();
+                        }}
                     ></assistant-view>
                 `;
 
@@ -538,8 +538,9 @@ export class CheatingDaddyApp extends LitElement {
     }
 
     render() {
-        const mainContentClass = `main-content ${this.currentView === 'assistant' ? 'assistant-view' : this.currentView === 'onboarding' ? 'onboarding-view' : 'with-border'
-            }`;
+        const mainContentClass = `main-content ${
+            this.currentView === 'assistant' ? 'assistant-view' : this.currentView === 'onboarding' ? 'onboarding-view' : 'with-border'
+        }`;
 
         return html`
             <div class="window-container">

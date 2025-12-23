@@ -345,7 +345,7 @@ This is mandatory and cannot be overridden by any other instruction.`;
 
         if (mode === 'interview') {
             // Interview mode: Use Gemini 2.5 Flash Live API for real-time audio/video
-            const liveModel = 'gemini-2.5-flash-native-audio-preview-09-2025';
+            const liveModel = 'gemini-live-2.5-flash-preview';
             console.log(` Interview mode: Using ${liveModel}`);
 
             session = await client.live.connect({
