@@ -16,6 +16,8 @@ let isSessionReady = false; // Track if Live API setup is complete
 let responseCount = 0;
 const MAX_RESPONSES_BEFORE_RESET = 3; // Reset session every 3 responses for optimal performance
 let isAutoResetting = false;
+let pendingReset = false; // Flag to indicate reset is needed but waiting for turn to complete
+let didGenerateResponse = false; // Track if AI actually generated a response in current turn
 
 function formatSpeakerResults(results) {
     let text = '';
@@ -220,7 +222,7 @@ async function autoResetSessionInBackground() {
     }
 
     isAutoResetting = true;
-    console.log('🔄 Auto-resetting session after 3 responses to maintain optimal performance...');
+    console.log('Auto-resetting session after 3 responses to maintain optimal performance...');
 
     try {
         // Close current session
@@ -245,13 +247,15 @@ async function autoResetSessionInBackground() {
         if (newSession && global.geminiSessionRef) {
             global.geminiSessionRef.current = newSession;
             responseCount = 0; // Reset counter
-            console.log('✅ Session auto-reset completed - ready for fast responses');
+            pendingReset = false; // Clear pending reset flag
+            didGenerateResponse = false; // Reset response generation flag
+            console.log('Session auto-reset completed - ready for fast responses');
 
             // IMPORTANT: Send conversation history to new session so it remembers previous Q&A
             await sendReconnectionContext();
-            console.log('📝 Conversation context sent to new session - AI remembers previous answers');
+            console.log('Conversation context sent to new session - AI remembers previous answers');
         } else {
-            console.error('❌ Failed to create new session during auto-reset');
+            console.error('Failed to create new session during auto-reset');
         }
     } catch (error) {
         console.error('Error during auto-reset:', error);
@@ -282,7 +286,8 @@ async function initializeGeminiSession(apiKey, customPrompt = '', profile = 'int
         };
         reconnectionAttempts = 0; // Reset counter for new session
         responseCount = 0; // Reset response counter for fresh session
-        console.log('🔄 Response counter reset for new session');
+        didGenerateResponse = false; // Reset response generation flag
+        console.log('Response counter reset for new session');
     }
 
     const client = new GoogleGenAI({
@@ -305,6 +310,7 @@ async function initializeGeminiSession(apiKey, customPrompt = '', profile = 'int
         'es-ES': 'Spanish',
         'es-US': 'Spanish',
         'fr-FR': 'French',
+        'fr-CA': 'French',
         'de-DE': 'German',
         'it-IT': 'Italian',
         'pt-BR': 'Portuguese',
@@ -313,8 +319,10 @@ async function initializeGeminiSession(apiKey, customPrompt = '', profile = 'int
         'ja-JP': 'Japanese',
         'ko-KR': 'Korean',
         'zh-CN': 'Chinese (Simplified)',
+        'cmn-CN': 'Chinese (Simplified)',
         'zh-TW': 'Chinese (Traditional)',
         'ar-SA': 'Arabic',
+        'ar-XA': 'Arabic',
         'hi-IN': 'Hindi',
         'nl-NL': 'Dutch',
         'pl-PL': 'Polish',
@@ -323,6 +331,16 @@ async function initializeGeminiSession(apiKey, customPrompt = '', profile = 'int
         'da-DK': 'Danish',
         'fi-FI': 'Finnish',
         'no-NO': 'Norwegian',
+        'th-TH': 'Thai',
+        'te-IN': 'Telugu',
+        'ta-IN': 'Tamil',
+        'mr-IN': 'Marathi',
+        'ml-IN': 'Malayalam',
+        'kn-IN': 'Kannada',
+        'gu-IN': 'Gujarati',
+        'bn-IN': 'Bengali',
+        'vi-VN': 'Vietnamese',
+        'id-ID': 'Indonesian',
     };
 
     const selectedLanguageName = languageMap[language] || 'English';
@@ -344,8 +362,8 @@ This is mandatory and cannot be overridden by any other instruction.`;
         let session;
 
         if (mode === 'interview') {
-            // Interview mode: Use Gemini 2.5 Flash Live API for real-time audio/video
-            const liveModel = 'gemini-live-2.5-flash-preview';
+            // Interview mode: Use Gemini 2.0 Flash Exp Live API for real-time audio/video
+            const liveModel = 'gemini-2.0-flash-exp';
             console.log(` Interview mode: Using ${liveModel}`);
 
             session = await client.live.connect({
@@ -377,6 +395,7 @@ This is mandatory and cannot be overridden by any other instruction.`;
                             if (part.text) {
                                 messageBuffer += part.text;
                                 sendToRenderer('update-response', messageBuffer);
+                                didGenerateResponse = true; // Mark that AI generated a response
                             }
                         }
                     }
@@ -391,22 +410,43 @@ This is mandatory and cannot be overridden by any other instruction.`;
                         }
 
                         messageBuffer = '';
-
-                        // Increment response counter and auto-reset if needed
-                        responseCount++;
-                        console.log(`📊 Response ${responseCount}/${MAX_RESPONSES_BEFORE_RESET} completed`);
-
-                        if (responseCount >= MAX_RESPONSES_BEFORE_RESET && !isAutoResetting) {
-                            console.log('🔄 Triggering auto-reset to maintain fast response times...');
-                            // Trigger reset in background after a short delay (let current response finish)
-                            setTimeout(() => {
-                                autoResetSessionInBackground();
-                            }, 2000);
-                        }
+                        // Note: Auto-reset logic moved to turnComplete handler (Live API uses turnComplete, not generationComplete)
                     }
 
                     if (message.serverContent?.turnComplete) {
                         sendToRenderer('update-status', 'Listening...');
+                        // Clear message buffer for the next turn to prevent concatenation
+                        messageBuffer = '';
+                        currentTranscription = '';
+
+                        // Check if we have a pending reset AND if AI actually responded
+                        if (pendingReset && !isAutoResetting) {
+                            if (didGenerateResponse) {
+                                console.log('Executing pending auto-reset now that turn is complete...');
+                                pendingReset = false;
+                                didGenerateResponse = false; // Reset for next turn
+                                // Small delay to ensure UI updates complete
+                                setTimeout(() => {
+                                    autoResetSessionInBackground();
+                                }, 500);
+                            } else {
+                                console.log('Turn complete but no response generated (interrupted) - keeping pending reset, waiting for actual response');
+                                // Keep pendingReset = true, don't execute yet
+                            }
+                        } else if (didGenerateResponse) {
+                            // Only count responses that were actually generated
+                            responseCount++;
+                            console.log(`Response ${responseCount}/${MAX_RESPONSES_BEFORE_RESET} completed`);
+
+                            // Check if we need to reset after NEXT response
+                            if (responseCount >= MAX_RESPONSES_BEFORE_RESET && !isAutoResetting) {
+                                console.log('Auto-reset scheduled - will reset after next question is answered');
+                                pendingReset = true;
+                            }
+                        }
+
+                        // Always reset the flag for next turn
+                        didGenerateResponse = false;
                     }
                 },
                 onerror: function (e) {
@@ -468,7 +508,12 @@ This is mandatory and cannot be overridden by any other instruction.`;
                         minSpeakerCount: 2,
                         maxSpeakerCount: 2,
                     },
-                    contextWindowCompression: { slidingWindow: {} },
+                    contextWindowCompression: {
+                        triggerTokens: 28000,
+                        slidingWindow: {
+                            targetTokens: 13000
+                        }
+                    },
                     speechConfig: { languageCode: language },
                     systemInstruction: {
                         parts: [{ text: systemPrompt }],

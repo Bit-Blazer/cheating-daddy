@@ -297,14 +297,14 @@ export class CheatingDaddyApp extends LitElement {
         }
 
         // Get model from localStorage (only matters for coding mode)
-        const selectedModel = localStorage.getItem('selectedModel') || 'gemini-2.5-pro';
+        const selectedModel = localStorage.getItem('selectedModel') || 'gemini-3-pro-preview';
 
         await cheddar.initializeGemini(this.selectedProfile, this.selectedLanguage, selectedMode, selectedModel);
 
         // Set current mode and model for header display
         this.currentMode = selectedMode;
         if (selectedMode === 'interview') {
-            this.currentModel = 'gemini-live-2.5-flash-preview';
+            this.currentModel = 'gemini-2.0-flash-exp';
         } else {
             this.currentModel = selectedModel;
         }
