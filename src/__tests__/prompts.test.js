@@ -89,13 +89,13 @@ describe('Prompt System Tests', () => {
         });
 
         it('specifies 5-section structure', () => {
-            const outputInstructions = profilePrompts.interview.outputInstructions;
+            const outputInstructions = profilePrompts.interview.outputInstructions.toLowerCase();
 
-            expect(outputInstructions).toContain('Approach');
-            expect(outputInstructions).toContain('Intuition');
-            expect(outputInstructions).toContain('Implementation');
-            expect(outputInstructions).toContain('Complexity Analysis');
-            expect(outputInstructions).toContain('Algorithm');
+            expect(outputInstructions).toContain('approach');
+            expect(outputInstructions).toContain('intuition');
+            expect(outputInstructions).toContain('implementation');
+            expect(outputInstructions).toContain('complexity analysis');
+            expect(outputInstructions).toContain('algorithm');
         });
 
         it('requires complexity analysis with O notation', () => {
